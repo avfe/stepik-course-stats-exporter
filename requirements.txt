@@ -1,0 +1,5 @@
+python-dotenv
+requests
+gspread
+google-auth
+schedule
