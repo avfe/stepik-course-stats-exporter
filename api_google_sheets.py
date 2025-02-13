@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from gspread import Cell, Worksheet, Client, service_account
 
-from api_stepik import get_successful_users_by_task
+from api_stepik_async import scan_course, get_successful_users_by_task
 
 ####### ENVIRONMENTS
 load_dotenv()
@@ -25,8 +25,10 @@ def get_worksheet():
     worksheet = table.worksheet(GOOGLE_SHEET_NAME)
     return worksheet
 
-def update_all_tasks(worksheet: Worksheet):
+async def update_all_tasks(worksheet: Worksheet):
     """Обрабатывает все задания и отмечает успешные решения в таблице."""
+
+    structured_units = await scan_course()
 
     # Получаем список кодов заданий (из 5-й строки)
     codes_row = worksheet.row_values(5)
@@ -40,9 +42,10 @@ def update_all_tasks(worksheet: Worksheet):
     # Проходим по каждому коду задания
     for task_col in range(2, len(codes_row)):
         code = codes_row[task_col]
+        print(code)
 
         # Получаем список успешных пользователей по этому коду
-        successful_user_ids = get_successful_users_by_task(code)
+        successful_user_ids = await get_successful_users_by_task(code, structured_units)
 
         # Проходим по каждому студенту
         for user_row, user_id in enumerate(user_ids, start=5):

@@ -1,24 +1,31 @@
-import schedule
+import asyncio
 import time
-
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
 
 from api_google_sheets import update_all_tasks, get_worksheet
 
 load_dotenv()
 
-def update_google_sheet():
-    update_all_tasks(get_worksheet())
 
-def job():
-    update_google_sheet()
-    print('Google Sheet was updated!')
+async def update_google_sheet():
+    await update_all_tasks(get_worksheet())
 
-schedule.every(1).minutes.do(job)  # Запускаем раз в минуту
+async def job():
+    x1 = time.time()
+    await update_google_sheet()
+    x2 = time.time()
+    print(f"{x2 - x1:.2f} sec - Google Sheet was updated!")
+
+async def main():
+    print("Stepik to Google Sheets Exporter was started!")
+    await job()
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(job, "interval", minutes=5)  # Запускаем раз в 5 минут
+    scheduler.start()
+
+    while True:
+        await asyncio.sleep(1)  # Поддерживаем асинхронный цикл активным
 
 if __name__ == "__main__":
-    print("Stepik to Google Sheets Exporter was started!")
-    job()
-    while True:
-        schedule.run_pending()
-        time.sleep(1)  # Ждём секунду перед следующей проверкой
+    asyncio.run(main())  # Запускаем асинхронный главный цикл

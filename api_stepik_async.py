@@ -135,37 +135,33 @@ async def get_successful_submissions_with_users(step_id: int, session: aiohttp.C
     Возвращает список словарей {"user": ..., "submission_id": ..., "time": ...}.
     """
     url = f"https://stepik.org/api/submissions?step={step_id}"
-    successful_submissions = []
     page = 1
-
+    usrs = set()
     while True:
         page_url = f"{url}&page={page}"
         async with session.get(page_url, headers=headers) as response:
             response.raise_for_status()
             data = await response.json()
+        atms = set()
+        for i in data['submissions']:
+            atms.add(i['attempt'])
+        base_url = "https://stepik.org/api/attempts"
 
-        # Собираем задачи для параллельного получения user_id
-        tasks = []
-        for submission in data["submissions"]:
-            if submission["status"] == "correct":
-                tasks.append(
-                    asyncio.create_task(
-                        _process_submission(submission, session, headers)
-                    )
-                )
+        query_string = "&".join([f"ids[]={id_}" for id_ in atms])
+        full_url = f"{base_url}?{query_string}"
+        async with session.get(full_url, headers=headers) as response:
+           response.raise_for_status()
+           d = await response.json()
 
-        # Ждём выполнения всех задач на текущей странице
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        for res in results:
-            if isinstance(res, dict):
-                successful_submissions.append(res)
-            # Игнорируем исключения, если произошли ошибки get_user_from_submission
+
+        for i in d['attempts']:
+            usrs.add(i['user'])
 
         if not data["meta"]["has_next"]:
             break
         page += 1
 
-    return successful_submissions
+    return usrs
 
 async def get_solutions_by_code(code, all_structured_units):
     try:
@@ -188,4 +184,4 @@ async def get_successful_users_by_task(code_id: str, all_structured_units) -> li
         headers = await get_headers(session)
         successful_submissions = await get_solutions_by_code(code_id, all_structured_units)
     # Возвращаем только user_id
-    return [item["user"] for item in successful_submissions if item]
+    return successful_submissions
